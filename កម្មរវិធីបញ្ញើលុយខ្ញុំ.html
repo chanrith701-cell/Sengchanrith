@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+
+<html lang="km">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>បញ្ញើលុយ</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:sans-serif;background:#eef2f7;min-height:100vh;padding:12px;max-width:430px;margin:0 auto}
+.header{background:linear-gradient(135deg,#1a1a2e,#0f3460);color:#fff;border-radius:16px;padding:20px 16px 16px;margin-bottom:12px;text-align:center;position:relative}
+.header h2{font-size:17px;margin-bottom:12px}
+.role-badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:11px;font-weight:700;margin-bottom:8px}
+.badge-admin{background:#ff6b35;color:#fff}
+.badge-viewer{background:#00b4d8;color:#fff}
+.admin-btn{position:absolute;top:10px;right:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.45);padding:3px 7px;border-radius:6px;font-size:10px;cursor:pointer;font-family:sans-serif;font-weight:600}
+.admin-btn.logout{background:rgba(255,107,53,.2);border-color:rgba(255,107,53,.35);color:rgba(255,200,180,.7)}
+.cur-tabs{display:flex;background:rgba(255,255,255,0.12);border-radius:12px;padding:3px;margin-bottom:14px}
+.cur-tab{flex:1;padding:8px 4px;border:none;background:transparent;color:rgba(255,255,255,0.6);font-size:14px;font-weight:700;border-radius:9px;cursor:pointer;font-family:sans-serif}
+.cur-tab.on{background:#fff;color:#1a1a2e}
+.bal-label{font-size:11px;color:rgba(255,255,255,.5);margin-bottom:4px}
+.bal{font-size:36px;font-weight:900;color:#00e676;margin:2px 0 6px}
+.bal.neg{color:#ff5252}
+.sync{font-size:11px;margin-top:4px;height:16px}
+.sync.ok{color:#69f0ae}.sync.err{color:#ff6b6b}.sync.ing{color:#ffeb3b}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.st{background:#fff;border-radius:12px;padding:11px 6px;text-align:center;box-shadow:0 1px 5px rgba(0,0,0,.07)}
+.st-lbl{font-size:10px;color:#888;margin-bottom:3px}
+.st-val{font-size:13px;font-weight:800}
+.g{color:#00a400}.r{color:#e41e3f}.b{color:#1877f2}
+.tabs{display:flex;background:#fff;border-radius:12px;padding:4px;margin-bottom:12px;box-shadow:0 1px 5px rgba(0,0,0,.07)}
+.tab{flex:1;padding:9px 2px;font-size:12px;border:none;background:transparent;border-radius:8px;cursor:pointer;color:#888;font-weight:700;font-family:sans-serif}
+.tab.on{background:linear-gradient(135deg,#1a1a2e,#0f3460);color:#fff}
+.panel{display:none}.panel.on{display:block}
+.card{background:#fff;border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 1px 7px rgba(0,0,0,.07)}
+.lbl{font-size:12px;color:#555;font-weight:700;margin-bottom:5px;display:block}
+input[type=number],input[type=text],input[type=datetime-local],textarea,input[type=password]{width:100%;padding:11px 13px;border:2px solid #e0e0e0;border-radius:9px;font-size:15px;font-family:sans-serif;color:#222;background:#fafafa;outline:none;margin-bottom:10px;display:block}
+input:focus,textarea:focus{border-color:#1877f2;background:#fff}
+textarea{resize:none;height:60px}
+.btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+.btn{width:100%;padding:13px;border:none;border-radius:10px;font-size:15px;font-family:sans-serif;font-weight:700;color:#fff;cursor:pointer}
+.btn-in{background:linear-gradient(135deg,#00b09b,#00c853)}
+.btn-out{background:linear-gradient(135deg,#ff416c,#ff4b2b)}
+.btn-gray{background:#636e72;margin-top:10px;padding:11px;width:100%;border:none;border-radius:10px;font-size:14px;font-family:sans-serif;font-weight:700;color:#fff;cursor:pointer}
+.viewer-notice{background:#e3f2fd;border:2px solid #90caf9;border-radius:12px;padding:16px;text-align:center;color:#1565c0;font-size:14px;margin-bottom:12px;line-height:1.6}
+.filter-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+select{width:100%;padding:10px 12px;border:2px solid #e0e0e0;border-radius:9px;font-size:14px;font-family:sans-serif;background:#fafafa;outline:none}
+.hlist{max-height:380px;overflow-y:auto}
+.hitem{background:#fff;border-radius:12px;padding:13px;margin-bottom:8px;box-shadow:0 1px 5px rgba(0,0,0,.07);border-left:4px solid #ddd}
+.hitem.in{border-left-color:#00c853}.hitem.out{border-left-color:#ff3d57}
+.hi-top{display:flex;justify-content:space-between;align-items:flex-start}
+.hi-type{font-size:12px;font-weight:700}
+.hi-type.in{color:#00a400}.hi-type.out{color:#e41e3f}
+.hi-amt{font-size:18px;font-weight:900}
+.hi-amt.in{color:#00a400}.hi-amt.out{color:#e41e3f}
+.hi-note{font-size:12px;color:#555;margin-top:4px}
+.hi-date{font-size:11px;color:#aaa;margin-top:2px}
+.hi-btns{display:flex;gap:6px;justify-content:flex-end;margin-top:8px}
+.ab{padding:6px 14px;border:none;border-radius:7px;font-size:13px;font-family:sans-serif;font-weight:700;color:#fff;cursor:pointer}
+.ab-edit{background:#f5a623}.ab-del{background:#e41e3f}
+.empty{text-align:center;color:#bbb;padding:30px;font-size:14px}
+.chart-box{background:#fff;border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 1px 7px rgba(0,0,0,.07)}
+.chart-title{font-size:13px;font-weight:700;margin-bottom:10px;color:#333}
+canvas{max-height:210px}
+/* MODAL */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center}
+.overlay.on{display:flex}
+.modal{background:#fff;border-radius:16px;padding:22px;width:90%;max-width:360px;box-shadow:0 10px 40px rgba(0,0,0,.2)}
+.modal h3{font-size:16px;margin-bottom:14px;color:#1a1a2e}
+.modal-btns{display:flex;gap:8px;margin-top:16px}
+.modal-btns button{flex:1;padding:11px;border:none;border-radius:9px;font-size:14px;font-family:sans-serif;font-weight:700;cursor:pointer;color:#fff}
+.mbtn-cancel{background:#aaa}.mbtn-ok{background:#1877f2}.mbtn-del{background:#e41e3f}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;z-index:999;max-width:280px;text-align:center;display:none}
+.toast.on{display:block}
+</style>
+</head>
+<body>
+
+<!-- ══ MAIN APP (everyone sees this) ══ -->
+
+<div class="header">
+  <!-- button changes based on role -->
+  <button class="admin-btn" id="topBtn" onclick="topBtnClick()">&#128081; Admin Login</button>
+  <h2>&#128176; បញ្ញើលុយខ្ញុំ</h2>
+  <div id="roleBadge"><span class="role-badge badge-viewer">&#128065; Viewer</span></div>
+  <div class="cur-tabs">
+    <button class="cur-tab on" id="tabUSD" onclick="switchCur('USD')">$ ដុល្លារ USD</button>
+    <button class="cur-tab"    id="tabKHR" onclick="switchCur('KHR')">&#6107; រៀល KHR</button>
+  </div>
+  <div class="bal-label">សមតុល្យនៅសល់</div>
+  <div class="bal" id="balEl">$0.00</div>
+  <div class="sync ing" id="syncEl">&#128267; កំពុងភ្ជាប់...</div>
+</div>
+
+<div class="stats">
+  <div class="st"><div class="st-lbl">បានដាក់</div><div class="st-val g" id="stIn">0</div></div>
+  <div class="st"><div class="st-lbl">បានដក</div><div class="st-val r" id="stOut">0</div></div>
+  <div class="st"><div class="st-lbl">ចំនួន</div><div class="st-val b" id="stCnt">0</div></div>
+</div>
+
+<div class="tabs">
+  <button class="tab on" id="tab-add"     onclick="goTab('add')">&#128221; ដាក់/ដក</button>
+  <button class="tab"    id="tab-history" onclick="goTab('history')">&#128203; ប្រវត្តិ</button>
+  <button class="tab"    id="tab-chart"   onclick="goTab('chart')">&#128202; ស្ថិតិ</button>
+</div>
+
+<!-- ADD PANEL -->
+
+<div class="panel on" id="panel-add">
+  <!-- viewer sees this -->
+  <div class="viewer-notice" id="viewerNotice">
+    &#128065; អ្នកកំពុងមើលក្នុងនាម <strong>Viewer</strong><br>
+    ចុច <strong>"Admin Login"</strong> ខាងលើ ដើម្បីដាក់/ដក/កែប្រែ
+  </div>
+  <!-- admin sees this -->
+  <div class="card" id="addForm" style="display:none">
+    <label class="lbl" id="amtLabel">&#128181; ចំនួនលុយ ($)</label>
+    <input type="number" id="inAmt" placeholder="0.00" min="0" step="any">
+    <label class="lbl">&#128221; មូលហេតុ / កំណត់ចំណាំ</label>
+    <textarea id="inNote" placeholder="ឧ. ប្រាក់ខែ, ទិញម្ហូប..."></textarea>
+    <label class="lbl">&#128197; កាលបរិច្ឆេទ &amp; ម៉ោង</label>
+    <input type="datetime-local" id="inDate">
+    <div class="btn-row">
+      <button class="btn btn-in"  onclick="doAdd()">&#9989; ដាក់ប្រាក់</button>
+      <button class="btn btn-out" onclick="doOut()">&#128184; ដកប្រាក់</button>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY PANEL -->
+
+<div class="panel" id="panel-history">
+  <div class="filter-row">
+    <select id="fType" onchange="renderHistory()">
+      <option value="all">ទាំងអស់</option>
+      <option value="i">ដាក់ប្រាក់</option>
+      <option value="o">ដកប្រាក់</option>
+    </select>
+    <select id="fSort" onchange="renderHistory()">
+      <option value="new">ថ្មីបំផុត</option>
+      <option value="old">ចាស់បំផុត</option>
+      <option value="hi">ច្រើនបំផុត</option>
+      <option value="lo">តិចបំផុត</option>
+    </select>
+  </div>
+  <div class="hlist" id="hlist"><div class="empty">&#128267; កំពុងផ្ទុក...</div></div>
+  <button class="btn-gray" id="btnClearAll" onclick="askClearAll()" style="display:none">&#128465; លុបទាំងអស់</button>
+</div>
+
+<!-- CHART PANEL -->
+
+<div class="panel" id="panel-chart">
+  <div class="chart-box"><div class="chart-title">&#128202; សំណង ដាក់ vs ដក</div><canvas id="pieC"></canvas></div>
+  <div class="chart-box"><div class="chart-title">&#128200; ចំណូល-ចំណាយ ៧ថ្ងៃ</div><canvas id="barC"></canvas></div>
+</div>
+
+<!-- MODAL: Admin Login -->
+
+<div class="overlay" id="modalLogin">
+  <div class="modal">
+    <h3>&#128081; Admin Login</h3>
+    <label class="lbl">Password</label>
+    <input type="password" id="loginPass" placeholder="បញ្ចូល Password..." onkeydown="if(event.key==='Enter')confirmLogin()">
+    <div style="color:#e41e3f;font-size:13px;margin-top:-6px;margin-bottom:8px;display:none" id="loginErr">❌ Password មិនត្រឹមត្រូវ</div>
+    <div class="modal-btns">
+      <button class="mbtn-cancel" onclick="closeModal('modalLogin')">បោះបង់</button>
+      <button class="mbtn-ok"     onclick="confirmLogin()">&#128274; ចូល</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Delete -->
+
+<div class="overlay" id="modalDel">
+  <div class="modal">
+    <h3>&#128465; លុបប្រតិបត្តិការ?</h3>
+    <p style="font-size:14px;color:#555">តើអ្នកពិតជាចង់លុប?</p>
+    <div class="modal-btns">
+      <button class="mbtn-cancel" onclick="closeModal('modalDel')">បោះបង់</button>
+      <button class="mbtn-del"    onclick="confirmDel()">លុបចោល</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Edit -->
+
+<div class="overlay" id="modalEdit">
+  <div class="modal">
+    <h3>&#9999; កែប្រែ</h3>
+    <label class="lbl">ចំនួនលុយថ្មី</label>
+    <input type="number" id="editAmt" placeholder="0.00" min="0" step="any">
+    <label class="lbl" style="margin-top:6px">មូលហេតុ / កំណត់ចំណាំ</label>
+    <input type="text" id="editNote" placeholder="...">
+    <div class="modal-btns">
+      <button class="mbtn-cancel" onclick="closeModal('modalEdit')">បោះបង់</button>
+      <button class="mbtn-ok"     onclick="confirmEdit()">រក្សាទុក</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Clear All -->
+
+<div class="overlay" id="modalClear">
+  <div class="modal">
+    <h3>&#128465; លុបទាំងអស់?</h3>
+    <p style="font-size:14px;color:#555">លុបប្រតិបត្តិការទាំងអស់នៃគណនី <strong id="clearCurLabel"></strong>?</p>
+    <div class="modal-btns">
+      <button class="mbtn-cancel" onclick="closeModal('modalClear')">បោះបង់</button>
+      <button class="mbtn-del"    onclick="confirmClearAll()">លុបចោល</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══ CONFIG ══
+var ADMIN_PASS = 'admin123'; // ← កែ password នៅនេះ
+
+// ══ Firebase ══
+var firebaseConfig = {
+  apiKey:"AIzaSyDqlHsKA1YvxXI6MrhGA3L2soIyZcwZSaM",
+  authDomain:"seng-chanrit.firebaseapp.com",
+  databaseURL:"https://seng-chanrit-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:"seng-chanrit",
+  storageBucket:"seng-chanrit.firebasestorage.app",
+  messagingSenderId:"307399818461",
+  appId:"1:307399818461:web:a82493af88e197735a2f34"
+};
+firebase.initializeApp(firebaseConfig);
+var db = firebase.database();
+
+// ══ State ══
+var state = {USD:{bal:0,txs:{}},KHR:{bal:0,txs:{}}};
+var cur = 'USD';
+var isAdmin = false;
+var pieInst=null,barInst=null;
+var pendingDelId=null,pendingEditId=null;
+
+// ══ TOP BUTTON ══
+function topBtnClick(){
+  if(isAdmin) doLogout();
+  else openModal('modalLogin');
+}
+
+// ══ LOGIN ══
+function confirmLogin(){
+  var pass = document.getElementById('loginPass').value;
+  if(pass === ADMIN_PASS){
+    isAdmin = true;
+    try{localStorage.setItem('isAdmin','1');}catch(e){}
+    closeModal('modalLogin');
+    document.getElementById('loginPass').value='';
+    document.getElementById('loginErr').style.display='none';
+    applyRole();
+    showToast('&#128081; ចូលក្នុងនាម Admin ហើយ!');
+  } else {
+    document.getElementById('loginErr').style.display='block';
+    document.getElementById('loginPass').value='';
+  }
+}
+
+function doLogout(){
+  isAdmin = false;
+  try{localStorage.removeItem('isAdmin');}catch(e){}
+  applyRole();
+  showToast('&#128065; បានផ្លាស់ប្តូរទៅ Viewer');
+}
+
+// ══ APPLY ROLE UI ══
+function applyRole(){
+  var btn = document.getElementById('topBtn');
+  var badge = document.getElementById('roleBadge');
+  if(isAdmin){
+    btn.textContent = '🔓 Logout Admin';
+    btn.className = 'admin-btn logout';
+    badge.innerHTML = '<span class="role-badge badge-admin">&#128081; Admin</span>';
+    document.getElementById('addForm').style.display = 'block';
+    document.getElementById('viewerNotice').style.display = 'none';
+    document.getElementById('btnClearAll').style.display = 'block';
+  } else {
+    btn.textContent = '🔒 Admin Login';
+    btn.className = 'admin-btn';
+    badge.innerHTML = '<span class="role-badge badge-viewer">&#128065; Viewer</span>';
+    document.getElementById('addForm').style.display = 'none';
+    document.getElementById('viewerNotice').style.display = 'block';
+    document.getElementById('btnClearAll').style.display = 'none';
+  }
+  // re-render history to show/hide edit/delete buttons
+  if(document.getElementById('panel-history').className.indexOf('on')>=0) renderHistory();
+}
+
+// ══ Firebase ══
+db.ref('money').on('value',function(snap){
+  var d=snap.val();
+  if(d){
+    if(d.USD) state.USD={bal:d.USD.bal||0,txs:d.USD.txs||{}};
+    if(d.KHR) state.KHR={bal:d.KHR.bal||0,txs:d.KHR.txs||{}};
+    try{localStorage.setItem('moneyState',JSON.stringify(state));}catch(e){}
+  }
+  setSyncSt('ok','&#9989; sync ហើយ');
+  refresh();
+  var at=getActiveTab();
+  if(at==='history') renderHistory();
+  if(at==='chart') renderCharts();
+},function(){
+  setSyncSt('err','&#128266; offline');
+  try{var r=localStorage.getItem('moneyState');if(r){state=JSON.parse(r);refresh();renderHistory();}}catch(e){}
+});
+
+function fbSave(){
+  setSyncSt('ing','&#128267; កំពុងរក្សា...');
+  try{localStorage.setItem('moneyState',JSON.stringify(state));}catch(e){}
+  db.ref('money').set(state)
+    .then(function(){setSyncSt('ok','&#9989; sync ហើយ');})
+    .catch(function(){setSyncSt('err','&#128266; saved local only');});
+}
+
+function setSyncSt(cls,msg){
+  var el=document.getElementById('syncEl');
+  el.innerHTML=msg;el.className='sync '+cls;
+}
+
+// ══ Helpers ══
+function acct(){return state[cur];}
+function fmtN(n){
+  if(cur==='KHR') return '\u17DB'+Math.round(n).toLocaleString();
+  return '$'+(Math.round(n*100)/100).toFixed(2);
+}
+function fmtDate(s){
+  if(!s)return'';
+  var d=new Date(s);
+  if(isNaN(d.getTime()))return s;
+  return d.getDate()+'/'+(d.getMonth()+1)+'/'+d.getFullYear()+' '+d.getHours()+':'+('0'+d.getMinutes()).slice(-2);
+}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function txsArray(obj){var a=[];for(var k in obj){if(obj.hasOwnProperty(k))a.push(obj[k]);}return a;}
+function getActiveTab(){
+  var ns=['add','history','chart'];
+  for(var i=0;i<ns.length;i++) if(document.getElementById('panel-'+ns[i]).className.indexOf('on')>=0) return ns[i];
+  return 'add';
+}
+
+// ══ Currency ══
+function switchCur(c){
+  cur=c;
+  document.getElementById('tabUSD').className='cur-tab'+(c==='USD'?' on':'');
+  document.getElementById('tabKHR').className='cur-tab'+(c==='KHR'?' on':'');
+  document.getElementById('amtLabel').textContent=c==='USD'?'💵 ចំនួនលុយ ($)':'💵 ចំនួនលុយ (៛)';
+  refresh();
+  var at=getActiveTab();
+  if(at==='history') renderHistory();
+  if(at==='chart') renderCharts();
+}
+
+// ══ Refresh ══
+function refresh(){
+  var a=acct(),el=document.getElementById('balEl');
+  el.textContent=fmtN(a.bal);
+  el.className='bal'+(a.bal<0?' neg':'');
+  var arr=txsArray(a.txs),ti=0,to=0;
+  arr.forEach(function(tx){if(tx.t==='i')ti+=tx.m;else to+=tx.m;});
+  document.getElementById('stIn').textContent=fmtN(ti);
+  document.getElementById('stOut').textContent=fmtN(to);
+  document.getElementById('stCnt').textContent=arr.length;
+}
+
+// ══ Date ══
+function setDefaultDate(){
+  var now=new Date();
+  now.setMinutes(now.getMinutes()-now.getTimezoneOffset());
+  document.getElementById('inDate').value=now.toISOString().slice(0,16);
+}
+
+// ══ Add/Withdraw ══
+function doAdd(){
+  var m=parseFloat(document.getElementById('inAmt').value);
+  if(!m||m<=0||isNaN(m)){showToast('សូមបញ្ចូលចំនួនលុយ');return;}
+  var note=document.getElementById('inNote').value.trim();
+  var date=document.getElementById('inDate').value||new Date().toISOString().slice(0,16);
+  var a=acct(),id='tx_'+Date.now();
+  a.bal=Math.round((a.bal+m)*100)/100;
+  a.txs[id]={id:id,t:'i',m:m,n:note,d:date};
+  fbSave();refresh();clearForm();
+}
+function doOut(){
+  var m=parseFloat(document.getElementById('inAmt').value);
+  if(!m||m<=0||isNaN(m)){showToast('សូមបញ្ចូលចំនួនលុយ');return;}
+  var a=acct();
+  if(m>a.bal+0.001){showToast('លុយមិនគ្រប់! សមតុល្យ: '+fmtN(a.bal));return;}
+  var note=document.getElementById('inNote').value.trim();
+  var date=document.getElementById('inDate').value||new Date().toISOString().slice(0,16);
+  var id='tx_'+Date.now();
+  a.bal=Math.round((a.bal-m)*100)/100;
+  a.txs[id]={id:id,t:'o',m:m,n:note,d:date};
+  fbSave();refresh();clearForm();
+}
+function clearForm(){
+  document.getElementById('inAmt').value='';
+  document.getElementById('inNote').value='';
+  setDefaultDate();
+}
+
+// ══ Toast ══
+var toastTimer=null;
+function showToast(msg){
+  var el=document.getElementById('toast');
+  el.innerHTML=msg;el.className='toast on';
+  if(toastTimer)clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){el.className='toast';},2500);
+}
+
+// ══ Modal ══
+function openModal(id){document.getElementById(id).className='overlay on';}
+function closeModal(id){document.getElementById(id).className='overlay';}
+
+// ══ History ══
+function renderHistory(){
+  var ft=document.getElementById('fType').value;
+  var fs=document.getElementById('fSort').value;
+  var arr=txsArray(acct().txs);
+  if(ft!=='all') arr=arr.filter(function(x){return x.t===ft;});
+  arr.sort(function(a,b){
+    if(fs==='new') return a.id<b.id?1:-1;
+    if(fs==='old') return a.id>b.id?1:-1;
+    if(fs==='hi')  return b.m-a.m;
+    return a.m-b.m;
+  });
+  var el=document.getElementById('hlist');
+  if(arr.length===0){el.innerHTML='<div class="empty">មិនទាន់មានប្រតិបត្តិការ</div>';return;}
+  var html='';
+  arr.forEach(function(tx){
+    var isIn=tx.t==='i';
+    html+='<div class="hitem '+(isIn?'in':'out')+'">';
+    html+='<div class="hi-top"><span class="hi-type '+(isIn?'in':'out')+'">'+(isIn?'+ ដាក់':'- ដក')+'</span>';
+    html+='<span class="hi-amt '+(isIn?'in':'out')+'">'+(isIn?'+':'-')+fmtN(tx.m)+'</span></div>';
+    if(tx.n) html+='<div class="hi-note">&#128221; '+esc(tx.n)+'</div>';
+    html+='<div class="hi-date">&#128336; '+fmtDate(tx.d)+'</div>';
+    if(isAdmin){
+      html+='<div class="hi-btns"><button class="ab ab-edit" onclick="askEdit(\''+tx.id+'\')">&#9999; កែ</button>';
+      html+='<button class="ab ab-del" onclick="askDel(\''+tx.id+'\')">&#128465; លុប</button></div>';
+    }
+    html+='</div>';
+  });
+  el.innerHTML=html;
+}
+
+// ══ Delete ══
+function askDel(sid){pendingDelId=sid;openModal('modalDel');}
+function confirmDel(){
+  closeModal('modalDel');
+  var a=acct(),tx=a.txs[pendingDelId];
+  if(!tx){pendingDelId=null;return;}
+  if(tx.t==='i') a.bal=Math.round((a.bal-tx.m)*100)/100;
+  else           a.bal=Math.round((a.bal+tx.m)*100)/100;
+  delete a.txs[pendingDelId];
+  fbSave();refresh();renderHistory();
+  pendingDelId=null;
+}
+
+// ══ Edit ══
+function askEdit(sid){
+  pendingEditId=sid;
+  var tx=acct().txs[sid];
+  if(!tx)return;
+  document.getElementById('editAmt').value=tx.m;
+  document.getElementById('editNote').value=tx.n||'';
+  openModal('modalEdit');
+}
+function confirmEdit(){
+  var newM=parseFloat(document.getElementById('editAmt').value);
+  if(!newM||newM<=0||isNaN(newM)){document.getElementById('editAmt').style.borderColor='#e41e3f';return;}
+  document.getElementById('editAmt').style.borderColor='';
+  var newN=document.getElementById('editNote').value.trim();
+  closeModal('modalEdit');
+  var a=acct(),tx=a.txs[pendingEditId];
+  if(!tx){pendingEditId=null;return;}
+  if(tx.t==='i') a.bal=Math.round((a.bal-tx.m)*100)/100;
+  else           a.bal=Math.round((a.bal+tx.m)*100)/100;
+  if(tx.t==='i'){
+    a.bal=Math.round((a.bal+newM)*100)/100;
+  } else {
+    if(newM>a.bal+0.001){a.bal=Math.round((a.bal+tx.m)*100)/100;showToast('លុយមិនគ្រប់');return;}
+    a.bal=Math.round((a.bal-newM)*100)/100;
+  }
+  a.txs[pendingEditId]={id:tx.id,t:tx.t,m:newM,n:newN,d:tx.d};
+  fbSave();refresh();renderHistory();
+  pendingEditId=null;
+}
+
+// ══ Clear All ══
+function askClearAll(){
+  document.getElementById('clearCurLabel').textContent=cur;
+  openModal('modalClear');
+}
+function confirmClearAll(){
+  closeModal('modalClear');
+  state[cur]={bal:0,txs:{}};
+  fbSave();refresh();renderHistory();
+  if(getActiveTab()==='chart') renderCharts();
+}
+
+// ══ Charts ══
+function renderCharts(){renderPie();renderBar();}
+function renderPie(){
+  var arr=txsArray(acct().txs),ti=0,to=0;
+  arr.forEach(function(tx){if(tx.t==='i')ti+=tx.m;else to+=tx.m;});
+  var ctx=document.getElementById('pieC').getContext('2d');
+  if(pieInst){try{pieInst.destroy();}catch(e){}pieInst=null;}
+  pieInst=new Chart(ctx,{type:'doughnut',data:{labels:['ដាក់','ដក'],datasets:[{data:[ti,to],backgroundColor:['#00c853','#ff3d57'],borderWidth:0}]},options:{plugins:{legend:{position:'bottom'}},cutout:'60%'}});
+}
+function renderBar(){
+  var arr=txsArray(acct().txs),labels=[],inD=[],outD=[];
+  for(var i=6;i>=0;i--){
+    var d=new Date();d.setDate(d.getDate()-i);d.setHours(0,0,0,0);
+    var nx=new Date(d.getTime());nx.setDate(nx.getDate()+1);
+    var si=0,so=0;
+    arr.forEach(function(tx){
+      var td=new Date(tx.d);
+      if(!isNaN(td.getTime())&&td>=d&&td<nx){if(tx.t==='i')si+=tx.m;else so+=tx.m;}
+    });
+    labels.push(d.getDate()+'/'+(d.getMonth()+1));
+    inD.push(Math.round(si*100)/100);outD.push(Math.round(so*100)/100);
+  }
+  var ctx=document.getElementById('barC').getContext('2d');
+  if(barInst){try{barInst.destroy();}catch(e){}barInst=null;}
+  var sym=cur==='KHR'?'\u17DB':'$';
+  barInst=new Chart(ctx,{type:'bar',data:{labels:labels,datasets:[{label:'ដាក់',data:inD,backgroundColor:'#00c853',borderRadius:4},{label:'ដក',data:outD,backgroundColor:'#ff3d57',borderRadius:4}]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true,ticks:{callback:function(v){return sym+v;}}}}}});
+}
+
+// ══ Tabs ══
+function goTab(name){
+  ['add','history','chart'].forEach(function(n){
+    document.getElementById('panel-'+n).className='panel'+(n===name?' on':'');
+    document.getElementById('tab-'+n).className='tab'+(n===name?' on':'');
+  });
+  if(name==='history') renderHistory();
+  if(name==='chart') renderCharts();
+}
+
+// ══ Init ══
+setDefaultDate();
+// check saved admin session
+try{if(localStorage.getItem('isAdmin')==='1'){isAdmin=true;applyRole();}}catch(e){}
+</script>
+
+</body>
+</html>
